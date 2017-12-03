@@ -12,7 +12,7 @@ class App extends Component {
           <Navbar inverse fixedTop>
             <Grid>
               <Navbar.Header>
-                <Navbar.Brand><Link to="/">React App</Link></Navbar.Brand>
+                <Navbar.Brand><Link to="/">MLasS</Link></Navbar.Brand>
                 <Navbar.Brand><Link to="/">Home</Link></Navbar.Brand>
                 <Navbar.Brand><Link to="/about">About</Link></Navbar.Brand>
               </Navbar.Header>
