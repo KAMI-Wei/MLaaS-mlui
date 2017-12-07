@@ -1,29 +1,31 @@
-import React, {Component} from 'react';
+import React from 'react';
 import { Grid, Jumbotron } from 'react-bootstrap';
 
 // 'stomp' 版本有问题, 确实可以直接链上取的. 在npm的版本很久.
 import Stomp from 'stompjs/lib/stomp';
 
-class About extends Component{
+class About extends React.Component{
 
   constructor(props) {
     super(props);
     this.state = {
       content:null,
-      websocketAbout: null,
-      viewerCount: null
+      viewerCount: null,
+      greeting: null
+
     };
     this.ws = null;
+    this.stomp = null;
   }
 
-  getAboutContent(){
+  queryContent(){
     let URL='/about';
     let _this = this;
     fetch(URL)
       .then( (response)=>response.json() )
       .then( (data)=>{
         console.log(data);
-        _this.setState({
+        this.setState({
           content:data.content
         })
       } )
@@ -36,11 +38,43 @@ class About extends Component{
       } )
   }
 
-  handleWebSocketAboutData(data) {
+  handleDataFromWebSocket(data) {
     this.setState({
       viewerCount:data
     });
   }
+
+  handleBoardCastDataFromStomp(data) {
+    data = JSON.parse(data.body);
+    this.setState({
+      greeting: data.content
+    });
+  }
+
+  sendDataViaWebSocket(data) {
+    if (this.ws === null || this.ws === undefined) {
+      throw new Error("WebSocket 未就绪");
+    }
+
+    if (typeof data !== 'string') {
+     data = JSON.stringify(data);
+    }
+    this.ws.send(data);
+  }
+
+  sendDataViaStomp(data) {
+    if (this.stomp === null || this.stomp === undefined) {
+      throw new Error("Stomp 未就绪");
+    }
+
+    if (typeof data !== 'string') {
+      data = JSON.stringify(data);
+    }
+
+    this.stomp.send("/app/hello", {}, data);
+
+  }
+
 
   render() {
     return <Jumbotron>
@@ -50,52 +84,67 @@ class About extends Component{
         <p>{ this.state.content }</p>
         <br/>
         <div>
-          <div> <p className="text-center"> <small>当前浏览人数: { this.state.viewerCount }</small></p></div>
+          <div>
+            <p className="text-center">
+              <small>当前浏览人数: { this.state.viewerCount } (最近加入: {this.state.greeting} )</small>
+            </p>
+          </div>
         </div>
       </Grid>
     </Jumbotron>
   }
 
   componentDidMount(){
-    this.getAboutContent();
-    var socket = new WebSocket("ws://localhost:9000/about/websocket");
-    socket.onopen = (ent) => {
-      console.log(ent);
-      socket.send(123);
-      // 不要使用上面的socket
-      // var stompClient = Stomp.Stomp.over(new WebSocket("ws://localhost:9000/about/websocket"));
-      //
-      // stompClient.connect({}, function (frame) {
-      //   console.log('Connected: ' + frame);
-      //   stompClient.send("/app/hello", "abcde");
-      //   stompClient.subscribe('/topic/greetings', function (greeting) {
-      //     console.log(greeting)
-      //   });
-      // });
+    let self = this;
+
+    self.queryContent();
+    self.name = Math.random().toString(36).substr(2);
+
+    self.ws = new WebSocket("ws://localhost:9000/about/websocket");
+
+    self.ws.onopen = (event) => {
+      console.log("WebSocket onOpen: ");
+      console.log(event);
+
+      self.sendDataViaWebSocket(self.name)
     };
 
-    socket.onmessage = (ent) => {
-      console.log(ent);
-      this.handleWebSocketAboutData(ent.data);
+    self.ws.onmessage = (event) => {
+      this.handleDataFromWebSocket(event.data);
     };
 
-    socket.onclose = (ent) => {
-      console.log(ent);
-      socket.send('bye');
+    self.ws.onclose = (event) => {
+      console.log("WebSocket onClose: ");
+      console.log(event);
     };
 
-    socket.onerror = (ent) => {
-      console.log(ent);
+    self.ws.onerror = (event) => {
+      self.ws = null;
+      console.log("WebSocket onError: ");
+      console.log(event);
     };
-    this.ws = socket;
 
+    self.stomp = Stomp.Stomp.over(new WebSocket("ws://localhost:9000/about/stomp/websocket"));
+
+    self.stomp.connect({}, function (frame) {
+
+      // console.log('Connected: ' + frame);
+      self.stomp.subscribe('/topic/greetings', (greeting) => {
+        self.handleBoardCastDataFromStomp(greeting);
+      });
+
+      self.stomp.send("/app/hello", {}, self.name);
+
+    });
 
 
   }
 
   componentWillUnmount() {
 
-    this.ws.close();
+    if(this.ws) {
+      this.ws.close();
+    }
 
   }
 }
