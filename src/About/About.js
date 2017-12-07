@@ -11,7 +11,8 @@ class About extends React.Component{
     this.state = {
       content:null,
       viewerCount: null,
-      greeting: null
+      greeting: null,
+      announce: null
 
     };
     this.ws = null;
@@ -44,10 +45,17 @@ class About extends React.Component{
     });
   }
 
-  handleBoardCastDataFromStomp(data) {
+  handleUserDataFromStomp(data) {
     data = JSON.parse(data.body);
     this.setState({
       greeting: data.content
+    });
+  }
+
+  handleBoardCastDataFromStomp(data) {
+    data = JSON.parse(data.body);
+    this.setState({
+      announce: data.content
     });
   }
 
@@ -71,7 +79,7 @@ class About extends React.Component{
       data = JSON.stringify(data);
     }
 
-    this.stomp.send("/app/hello", {}, data);
+    this.stomp.send("/app/hello",  data);
 
   }
 
@@ -81,12 +89,12 @@ class About extends React.Component{
       <Grid>
         <h1>About MLasS</h1>
         <br/>
-        <p>{ this.state.content }</p>
+        <p>{this.state.greeting} { this.state.content }</p>
         <br/>
         <div>
           <div>
             <p className="text-center">
-              <small>当前浏览人数: { this.state.viewerCount } (最近加入: {this.state.greeting} )</small>
+              <small>当前浏览人数: { this.state.viewerCount } (最近加入: {this.state.announce} )</small>
             </p>
           </div>
         </div>
@@ -129,11 +137,17 @@ class About extends React.Component{
     self.stomp.connect({}, function (frame) {
 
       // console.log('Connected: ' + frame);
-      self.stomp.subscribe('/topic/greetings', (greeting) => {
+      self.stomp.subscribe('/topic/announce', (greeting) => {
         self.handleBoardCastDataFromStomp(greeting);
       });
 
-      self.stomp.send("/app/hello", {}, self.name);
+      self.stomp.subscribe('/user/queue/msg', (msg) => {
+        self.handleUserDataFromStomp(msg);
+      });
+
+      self.stomp.send("/app/announce", {}, self.name);
+
+      self.stomp.send("/app/register", {}, self.name);
 
     });
 
