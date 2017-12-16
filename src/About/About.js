@@ -87,7 +87,7 @@ class About extends React.Component{
   render() {
     return <Jumbotron>
       <Grid>
-        <h1>About MLasS</h1>
+        <h2>About MLaaS</h2>
         <br/>
         <p>{this.state.greeting} { this.state.content }</p>
         <br/>
@@ -108,8 +108,10 @@ class About extends React.Component{
     self.queryContent();
     self.name = Math.random().toString(36).substr(2);
 
+    // 建立 WebSocket 连接
     self.ws = new WebSocket("ws://localhost:9000/about/websocket");
 
+    // 绑定事件
     self.ws.onopen = (event) => {
       console.log("WebSocket onOpen: ");
       console.log(event);
